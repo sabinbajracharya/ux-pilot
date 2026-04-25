@@ -107,6 +107,37 @@ ux-pilot run --url "https://example.com" --task "Sign up" \
 | `ux-pilot history list` | View past runs |
 | `ux-pilot history show <id>` | Show details of a past run |
 
+## Configuration
+
+Settings are resolved with this priority: **CLI flags → env vars → config file → defaults**
+
+Create `~/.ux-pilot/config.yaml` to set persistent defaults:
+
+```yaml
+llm_provider: openai
+llm_model: gpt-4o
+llm_api_key: sk-...        # or use env vars instead
+headed: false
+max_actions: 50
+max_duration_minutes: 5
+output_dir: ./results
+ollama_base_url: http://localhost:11434
+```
+
+Environment variables use the `UX_PILOT_` prefix:
+
+```bash
+export UX_PILOT_LLM_PROVIDER=anthropic
+export UX_PILOT_LLM_MODEL=claude-sonnet-4-20250514
+export UX_PILOT_MAX_ACTIONS=30
+```
+
+CLI flags always win:
+
+```bash
+ux-pilot run --url ... --task ... --llm-model gpt-4o --max-actions 20
+```
+
 ## LLM Providers
 
 ```bash
