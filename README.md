@@ -13,9 +13,14 @@ Watch an AI persona — with a real personality, real frustrations, real hesitat
 ## Install
 
 ```bash
+cd cli
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -e .
 playwright install chromium
 ```
+
+After installation, the `ux-pilot` command is available whenever the venv is active.
 
 ## Quick Start
 
