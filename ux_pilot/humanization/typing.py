@@ -55,6 +55,11 @@ def get_adjacent_key(char: str) -> str:
     return wrong.upper() if char.isupper() else wrong
 
 
+# Only called from HumanizationInjector.inject_humanized_type(), which is itself
+# not wired (see comment in injector.py). browser-use controls typing internally
+# via page.fill() / page.keyboard.type() with no interception hook. When
+# browser-use adds a pre-type callback, wire inject_humanized_type and this
+# generator to replace instant typing with persona-profiled keystrokes.
 def generate_keystroke_sequence(
     text: str,
     profile: HumanizationProfile,

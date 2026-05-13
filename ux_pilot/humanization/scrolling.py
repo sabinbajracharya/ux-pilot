@@ -17,6 +17,13 @@ ATTENTION_ABOVE_FOLD = 0.57
 ATTENTION_SECOND_SCREEN = 0.17
 
 
+# NOT CURRENTLY WIRED — browser-use controls scrolling internally via its own
+# action execution. There is no callback or hook to replace browser-use's scroll
+# actions with a custom scroll plan. We CAN inject micro-adjustments post-scroll
+# (see injector._micro_scroll), but the primary scroll trajectory is owned by
+# browser-use. If browser-use adds a pre-scroll hook or custom action handlers,
+# wire this to replace linear scrolling with NNGroup attention distribution
+# (57% above fold, scroll-back probability, reading pauses per screenful).
 def generate_scroll_plan(
     viewport_height: int,
     page_height: int,

@@ -66,6 +66,12 @@ class HumanizationInjector:
         if self._step_count % 3 == 0:
             await self._ambient_mouse_move(page)
 
+    # NOT CURRENTLY WIRED — browser-use controls typing internally via its own
+    # action execution (page.fill / page.keyboard.type). There is no callback or
+    # hook in browser-use's Agent API to intercept or replace typing actions with
+    # custom keystroke sequences. If browser-use adds a pre-type hook or allows
+    # custom action handlers, wire this to replace instant typing with
+    # persona-profiled keystrokes (QWERTY-adjacent typos, corrections, dwell timing).
     async def inject_humanized_type(self, page: Any, text: str) -> None:
         """Type text character-by-character with realistic timing and errors.
 
@@ -76,20 +82,16 @@ class HumanizationInjector:
 
         keystrokes = generate_keystroke_sequence(
             text,
-            wpm=60,
-            error_rate=self._profile.typing_error_rate,
+            self._profile,
         )
 
         for ks in keystrokes:
-            delay = ks.dwell_ms / 1000 * self._frustration_modifier
-            await asyncio.sleep(delay)
+            # Sleep for inter-key delay before pressing
+            await asyncio.sleep(ks["delay_before"] * self._frustration_modifier)
             try:
-                if ks.action == "press":
-                    await page.keyboard.press(ks.key)
-                elif ks.action == "type":
-                    await page.keyboard.type(ks.char, delay=0)
-                elif ks.action == "backspace":
-                    await page.keyboard.press("Backspace")
+                await page.keyboard.press(ks["key"])
+                # Hold the key for dwell time
+                await asyncio.sleep(ks["dwell"] * self._frustration_modifier)
             except Exception:
                 pass  # Page may have navigated away
 

@@ -138,6 +138,12 @@ def generate_mouse_path(
     return points
 
 
+# NOT CURRENTLY WIRED — browser-use controls click targeting internally. There is
+# no callback to intercept click coordinates and decide whether to misclick
+# (click a nearby element instead). The post-click fidget (injector._fidget_mouse)
+# does run, but the actual click target is chosen by browser-use. If browser-use
+# adds a pre-click hook or exposes element bounding boxes, wire this to apply
+# persona-specific misclick rates (Fitts' Law: smaller targets = more misclicks).
 def should_misclick(
     target_width: float,
     target_height: float,

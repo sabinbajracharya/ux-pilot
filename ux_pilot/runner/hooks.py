@@ -1,7 +1,9 @@
-"""browser-use event hooks for humanization.
+"""Humanization timing delays between browser-use steps based on persona profile.
 
-Adds human-like timing delays between browser-use steps based on persona profile.
-Uses browser-use's proper on_step_start/on_step_end callback API.
+on_step_start and on_step_end are called manually from AgentRunner._on_new_step
+(browser-use does not expose pre/post-step hooks). on_step_start fires after a
+step completes but before the next one is decided — simulating the cognitive
+pause to digest the page. on_step_end adds a post-processing pause.
 """
 
 from __future__ import annotations
@@ -22,11 +24,11 @@ logger = logging.getLogger(__name__)
 
 
 class HumanizationHooks:
-    """Hooks into browser-use Agent to add human-like delays.
+    """Add human-like cognitive and post-action delays between agent steps.
 
-    Designed for browser-use's callback system:
-    - on_step_start: pre-action delays (thinking, scanning, deliberation)
-    - on_step_end: post-action delays (reading, processing)
+    Called manually from AgentRunner._on_new_step (not via browser-use callbacks):
+    - on_step_start: pre-decision delays (page evaluation, Hick's Law, eye-mouse lead)
+    - on_step_end: post-action delays (reading, processing pause)
     """
 
     def __init__(self, profile: HumanizationProfile):
