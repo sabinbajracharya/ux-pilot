@@ -52,16 +52,21 @@ ux-pilot personas list
 
 | # | Name | Category | Key Traits |
 |---|------|----------|------------|
-| 1 | Tech-Savvy Professional | Professional | 📱 95 tech · 😌 20 neuro · ⚡ 80 speed |
-| 2 | Careful Researcher | Analytical | 🔍 95 consc · 👁 95 attn · 🐢 20 speed |
-| 3 | Impulse Shopper | Consumer | ⚡ 95 speed · 🦋 30 attn · 💰 20 price |
-| 4 | Anxious First-Timer | Novice | 😰 90 neuro · 📱 25 tech · 🔒 30 open |
-| 5 | Price Hunter | Consumer | 💰 95 price · 🔍 80 consc · 👁 80 attn |
-| 6 | Brand Loyal Enthusiast | Consumer | 🤝 85 agree · 💰 20 price · 🔓 30 open |
-| 7 | Senior User | Demographic | 📱 20 tech · ⚡ 25 speed · 🔒 30 open |
-| 8 | Accessibility User | Accessibility | 🔍 60 consc · ⚡ 40 speed · 😰 40 neuro |
-| 9 | Enterprise B2B Buyer | Professional | 🔍 90 consc · 👁 90 attn · ⚡ 20 speed |
-| 10 | First-Time Online Shopper | Novice | 📱 15 tech · 🤝 70 agree · 😰 75 neuro |
+| 1 | Tech-Savvy Professional | Professional | 95 tech · 20 neuro · 80 speed |
+| 2 | Careful Researcher | Analytical | 95 consc · 95 attn · 20 speed |
+| 3 | Impulse Shopper | Consumer | 95 speed · 20 consc · 80 extra |
+| 4 | Anxious First-Timer | Novice | 90 neuro · 25 tech · 30 open |
+| 5 | Price Hunter | Consumer | 95 price · 80 consc · 80 attn |
+| 6 | Brand Loyal Enthusiast | Consumer | 85 agree · 20 price · 70 extra |
+| 7 | Senior User | Demographic | 20 tech · 25 speed · 60 neuro |
+| 8 | Accessibility User | Accessibility | 60 consc · 50 tech · 40 neuro |
+| 9 | Enterprise B2B Buyer | Professional | 90 consc · 90 attn · 20 speed |
+| 10 | First-Time Online Shopper | Novice | 15 tech · 70 agree · 75 neuro |
+| 11 | Social Media Scroller | Consumer | 90 extra · 20 attn · 75 open |
+| 12 | Privacy-Conscious User | Privacy | 85 consc · 20 agree · 80 attn |
+| 13 | Power Admin | Professional | 95 tech · 85 speed · 80 consc |
+| 14 | Mobile-Only User | Demographic | 25 attn · 70 speed · 65 extra |
+| 15 | Weekend Deal Hunter | Consumer | 85 price · 35 speed · 55 consc |
 
 ## Custom Personas
 
@@ -158,8 +163,21 @@ ux-pilot run --url ... --task ... --llm-provider anthropic --llm-model claude-so
 export GROQ_API_KEY="gsk_..."
 ux-pilot run --url ... --task ... --llm-provider groq --llm-model llama-3.3-70b-versatile
 
+# DeepSeek
+export DEEPSEEK_API_KEY="sk-..."
+ux-pilot run --url ... --task ... --llm-provider deepseek --llm-model deepseek-chat
+
 # Ollama (local, free)
 ux-pilot run --url ... --task ... --llm-provider ollama --llm-model llama3.2
+```
+
+### Statistical Runs
+
+Run the same persona multiple times for statistical validity (LLM behavior is non-deterministic):
+
+```bash
+ux-pilot run --url "https://shop.example.com" --task "Buy a smartphone" \
+  --persona "Anxious First-Timer" --instances 5
 ```
 
 ## How It Works
@@ -228,17 +246,44 @@ ux-pilot run ... --output ./results
 
 ```
 ux_pilot/
-├── cli.py              # Typer CLI commands
-├── config.py           # Settings (env → file → CLI cascade)
-├── personas/           # 10 built-in personas, trait system, prompt builder
-├── runner/             # browser-use Agent wrapper, guardrails, hooks
-├── humanization/       # Mouse, typing, scrolling, timing simulation
-├── analysis/           # Post-run LLM analysis + recommendations
-├── output/             # Rich Live dashboard, summary panels, export
-└── storage/            # SQLite history (~/.ux-pilot/history.db)
+├── cli.py              # Typer CLI entry (run, personas, history)
+├── config.py           # Settings cascade (CLI > env > file > defaults)
+├── personas/           # 15 built-in personas, trait system, prompt builder
+│   ├── catalog.py      # Persona archetype definitions
+│   ├── rules.py        # 4-tier behavioral rules + 17 compound interactions
+│   ├── translator.py   # Traits → behavioral rules engine
+│   ├── prompt_builder.py  # 5-layer system prompt (PersonaLLM-validated)
+│   └── state_generator.py # LLM-driven emotion + monologue generation
+├── runner/             # Browser agent execution
+│   ├── agent.py        # AgentRunner (browser-use wrapper)
+│   ├── orchestrator.py # Parallel multi-persona execution
+│   ├── commands.py     # CLI command implementations
+│   ├── guardrails.py   # Persona-aware stop conditions + frustration
+│   ├── hooks.py        # Human-like timing delays
+│   ├── llm_factory.py  # Provider-agnostic LLM (OpenAI, Anthropic, DeepSeek, Groq, Ollama)
+│   └── tracking.py     # Token usage tracking (composition pattern)
+├── humanization/       # Research-backed human simulation
+│   ├── profile.py      # Trait → behavioral parameter mapping
+│   ├── mouse.py        # Bézier curves, Fitts' Law
+│   ├── typing.py       # KeyRecs: dwell timing, error patterns
+│   ├── scrolling.py    # NNGroup attention distribution
+│   └── timing.py       # Hick's Law, page evaluation delays
+├── analysis/           # Post-run AI analysis
+├── output/             # Rich Live TUI, summary, export, comparison
+└── storage/            # SQLite run history
 ```
 
-**Dependencies (5 runtime):** browser-use, litellm, typer, rich, pydantic
+**Key features:**
+- 15 built-in personas with 9-trait OCEAN + browsing model
+- 17 compound trait interactions for emergent behaviors
+- LLM-driven persona state (contextual monologues every 2 steps)
+- Persona-aware guardrails (thresholds scaled by neuroticism/conscientiousness)
+- Implicit failure detection (frustration from stuck/repeated actions)
+- `--instances N` for statistical validity across multiple runs
+- Provider-agnostic: OpenAI, Anthropic, DeepSeek, Groq, Ollama
+- 55 tests
+
+**Dependencies (6 runtime):** browser-use, litellm, typer, rich, pydantic, openai
 
 ## License
 

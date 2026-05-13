@@ -284,7 +284,11 @@ class AgentRunner:
         monologue = self._generate_monologue(base_emotion, action_type, description)
 
         if self._state.step_count % _PERSONA_STATE_INTERVAL == 0 and self._state.actions:
-            state = await self._maybe_generate_llm_state(page_url, base_emotion)
+            # Extract page observations from agent's thinking for richer context
+            page_observation = getattr(agent_output, "thinking", None) if agent_output else None
+            state = await self._maybe_generate_llm_state(
+                page_url, base_emotion, page_observation
+            )
             if state:
                 emotion = state.get("emotion", base_emotion)
                 monologue = state.get("monologue", monologue)
