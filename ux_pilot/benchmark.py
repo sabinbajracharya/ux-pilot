@@ -124,6 +124,19 @@ async def run_benchmark(
                     traits=dict(template.traits),
                 )
                 result = await runner.run()
+
+                # Run post-completion analysis for satisfaction score
+                try:
+                    from ux_pilot.analysis.analyzer import analyze_run
+                    analysis = await analyze_run(
+                        result=result, provider=settings.llm_provider,
+                        model=settings.llm_model, api_key=settings.get_api_key(),
+                    )
+                    if analysis.satisfaction_score:
+                        result.satisfaction_score = analysis.satisfaction_score
+                except Exception:
+                    pass  # Analysis is best-effort in benchmark mode
+
                 all_results.append(ScenarioResult(
                     scenario=scenario.name,
                     persona=template.name,
@@ -199,6 +212,22 @@ def print_benchmark_report(console: Console, results: list[ScenarioResult]) -> N
             )
 
     console.print(stats_table)
+
+    # Persona-specific findings
+    console.print()
+    console.print("[bold]Persona-Specific Findings:[/]")
+    for scenario in sorted(set(r.scenario for r in results)):
+        scenario_results = [r for r in results if r.scenario == scenario]
+        console.print(f"  [bold]{scenario}:[/]")
+        # Best and worst persona for this scenario
+        best = max(scenario_results, key=lambda r: (r.completed, -r.frustration, r.satisfaction))
+        worst = max(scenario_results, key=lambda r: (not r.completed, r.frustration, -r.satisfaction))
+        if best.completed and not worst.completed:
+            console.print(f"    [green]Best: {best.persona}[/] (completed in {best.steps} steps) vs [red]Worst: {worst.persona}[/] (failed: {worst.stop_reason})")
+        elif best.completed and worst.completed:
+            console.print(f"    [green]Fastest: {best.persona}[/] ({best.steps} steps, {best.duration:.0f}s) — [yellow]Slowest: {worst.persona}[/] ({worst.steps} steps, {worst.duration:.0f}s)")
+        elif not best.completed:
+            console.print(f"    [red]All personas failed this scenario[/] — likely a site accessibility issue")
 
     # Key insights
     console.print()
