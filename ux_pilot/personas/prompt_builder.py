@@ -75,7 +75,7 @@ class PersonaPromptBuilder:
             self._identity_layer(demographics, goals),
             self._personality_layer(traits),
             self._behavioral_layer(ruleset),
-            self._goal_layer(task_description, success_criteria),
+            self._goal_layer(task_description, success_criteria, traits=traits),
             self._constraint_layer(traits=traits, target_url=target_url),
         ])
 
@@ -126,10 +126,40 @@ class PersonaPromptBuilder:
 
         return "\n".join(lines)
 
-    def _goal_layer(self, task_description: str, success_criteria: str | None) -> str:
+    def _goal_layer(self, task_description: str, success_criteria: str | None,
+                     traits: dict[str, int] | None = None) -> str:
+        t = traits or {}
+        decision_speed = t.get("decision_speed", 50)
+        conscientiousness = t.get("conscientiousness", 50)
+        neuroticism = t.get("neuroticism", 50)
+        attention = t.get("attention_span", 50)
+
+        # Task approach varies by persona
+        if decision_speed >= 70 and conscientiousness <= 40:
+            approach = "APPROACH: You make decisions instantly. Pick the FIRST option that looks acceptable and move on. Do not deliberate."
+        elif conscientiousness >= 70 and decision_speed <= 40:
+            approach = "APPROACH: You are methodical. Compare ALL options before deciding. Read details thoroughly. Take your time — completeness matters more than speed."
+        elif neuroticism >= 70:
+            approach = "APPROACH: You are cautious and worried. Double-check everything. Hesitate before important clicks. It's OK to abandon if things feel wrong."
+        elif attention <= 35:
+            approach = "APPROACH: You get distracted easily. If something catches your eye, follow it even if it's not directly relevant. You may forget the original task."
+        else:
+            approach = "APPROACH: You take a balanced approach — thorough enough but not obsessive."
+
+        # Stopping conditions vary by persona
+        if neuroticism >= 75:
+            stopping = "STOPPING: You may abandon the task if you encounter 2+ confusing situations. That is realistic — anxious users often give up."
+        elif conscientiousness >= 75:
+            stopping = "STOPPING: You persist until the task is complete or you've exhausted all reasonable options. Giving up is a last resort."
+        else:
+            stopping = "STOPPING: You try a few approaches, then move on if stuck. You don't obsess over completion."
+
         lines = [
             f"YOUR TASK: {task_description}",
             f"SUCCESS CRITERIA: {success_criteria or 'Complete the task described above.'}",
+            "",
+            approach,
+            stopping,
             "",
             "INFORMATION SCENT GUIDANCE:",
             '- Before clicking any link or button, evaluate: "Does this seem likely to help me achieve my task?"',
