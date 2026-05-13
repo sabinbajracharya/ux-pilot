@@ -12,6 +12,7 @@ import json
 
 from ux_pilot.analysis.models import ActionEntry, RunResult
 from ux_pilot.config import Settings
+from ux_pilot.humanization.injector import HumanizationInjector, get_page_from_agent
 from ux_pilot.humanization.profile import HumanizationProfile
 from ux_pilot.personas.state_generator import PersonaStateGenerator
 from ux_pilot.personas.translator import PersonaRuleset, TraitTranslator
@@ -126,6 +127,8 @@ class AgentRunner:
             conscientiousness=conscientiousness,
         )
         self._hooks = HumanizationHooks(self._profile)
+        self._injector = HumanizationInjector(self._profile)
+        self._agent = None  # Set in _execute after Agent creation
         self._should_stop = False
         self._stop_reason: str | None = None
 
@@ -220,7 +223,7 @@ class AgentRunner:
         if self.target_url:
             initial_actions.append({"navigate": {"url": self.target_url}})
 
-        agent = Agent(
+        self._agent = Agent(
             task=self.task_description,
             llm=llm,
             browser_profile=BrowserProfile(**browser_kwargs),
@@ -233,6 +236,7 @@ class AgentRunner:
             register_done_callback=self._on_done,
             register_should_stop_callback=self._check_should_stop,
         )
+        agent = self._agent
 
         max_duration = self.settings.max_duration_minutes * 60
         history = await asyncio.wait_for(
@@ -329,16 +333,29 @@ class AgentRunner:
         # Apply humanization delay (thinking pause between steps)
         await self._hooks.on_step_end(None)
 
+        # Inject CDP-level humanization (mouse fidget, micro-scroll, etc.)
+        page = get_page_from_agent(self._agent)
+        if page:
+            self._injector.update_frustration(self._guardrail_state.frustration_level)
+            try:
+                await self._injector.inject_post_action(page, action_type, was_successful)
+            except Exception:
+                pass  # CDP injection is best-effort, don't break the run
+
         if self._on_step:
             self._on_step(entry)
 
-    async def _maybe_generate_llm_state(self, page_url: str | None, base_emotion: str) -> dict | None:
-        """Call LLM for rich persona state. Returns None on failure."""
+    async def _maybe_generate_llm_state(
+        self, page_url: str | None, base_emotion: str, page_observation: str | None = None
+    ) -> dict | None:
+        """Call LLM for rich persona state. Optionally includes page observations."""
         try:
             recent = [
                 {"type": a.action_type, "desc": a.description}
                 for a in self._state.actions[-3:]
             ]
+            if page_observation:
+                recent.append({"type": "observe", "desc": page_observation[:200]})
             prompt = self._state_generator.build_prompt(
                 current_url=page_url,
                 recent_actions=recent,
