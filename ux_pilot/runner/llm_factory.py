@@ -66,7 +66,7 @@ def _create_deepseek(model: str | None = None, api_key: str | None = None, **kwa
 
     resolved_key = api_key or os.environ.get("DEEPSEEK_API_KEY", "")
     return ChatOpenAI(
-        model=model or "deepseek-chat",
+        model=model or "deepseek-v4-pro",
         base_url="https://api.deepseek.com/v1",
         api_key=resolved_key,
         dont_force_structured_output=True,
