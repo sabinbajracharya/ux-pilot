@@ -18,6 +18,7 @@ class RunState:
     emotion_journey: list[str] = field(default_factory=list)
     friction_points: list[str] = field(default_factory=list)
     token_acc: dict[str, int] = field(default_factory=lambda: {"input": 0, "output": 0})
+    humanization_time_ms: float = 0.0
 
     @property
     def elapsed_seconds(self) -> float:

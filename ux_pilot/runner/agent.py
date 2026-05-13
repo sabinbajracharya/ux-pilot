@@ -189,6 +189,7 @@ class AgentRunner:
             failure_reason=result.get("failureReason"),
             total_steps=self._state.step_count,
             total_duration_seconds=self._state.elapsed_seconds,
+            humanization_time_ms=self._state.humanization_time_ms,
             actions=list(self._state.actions),
             cost=self._state.cost,
             emotion_journey=list(self._state.emotion_journey),
@@ -256,6 +257,14 @@ class AgentRunner:
         """Callback after each browser-use step — tracks guardrails and emotions."""
         self._state.step_count += 1
         step_start = time.monotonic()
+
+        # Cognitive pre-action delays (page evaluation, decision time, eye-mouse lead)
+        # These fire between the previous action completing and the next one starting,
+        # simulating the human pause to digest the page and decide what to do.
+        try:
+            await self._hooks.on_step_start(self._agent)
+        except Exception:
+            pass
 
         page_url = browser_state.url if browser_state else None
         action_type = _extract_action_type(agent_output)
@@ -345,6 +354,7 @@ class AgentRunner:
             logger.info("Guardrail triggered: %s", result.reason)
 
         # Apply humanization delay (thinking pause between steps)
+        h_start = time.monotonic()
         await self._hooks.on_step_end(None)
 
         # Inject CDP-level humanization (mouse fidget, micro-scroll, etc.)
@@ -355,6 +365,7 @@ class AgentRunner:
                 await self._injector.inject_post_action(page, action_type, was_successful)
             except Exception:
                 pass  # CDP injection is best-effort, don't break the run
+        self._state.humanization_time_ms += (time.monotonic() - h_start) * 1000
 
         if self._on_step:
             self._on_step(entry)

@@ -24,6 +24,12 @@ def print_summary(console: Console, result: RunResult) -> None:
         f"~${result.cost.estimated_cost_usd:.4f}[/]"
     )
 
+    # Humanization overhead (cognitive delays + CDP injection)
+    if result.humanization_time_ms > 0:
+        h_sec = result.humanization_time_ms / 1000
+        pct = (h_sec / result.total_duration_seconds * 100) if result.total_duration_seconds > 0 else 0
+        parts.append(f"[dim]Humanization: {h_sec:.1f}s ({pct:.0f}% of runtime)[/]")
+
     if result.satisfaction_score:
         parts.append(f"[bold]Satisfaction:[/] {result.satisfaction_score}/100")
 

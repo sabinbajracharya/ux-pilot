@@ -127,6 +127,7 @@ class RunResult:
     failure_reason: str | None = None
     total_steps: int = 0
     total_duration_seconds: float = 0.0
+    humanization_time_ms: float = 0.0
     actions: list[ActionEntry] = field(default_factory=list)
     recommendations: list[Recommendation] = field(default_factory=list)
     cost: CostInfo = field(default_factory=CostInfo)
@@ -147,6 +148,7 @@ class RunResult:
             "failureReason": self.failure_reason,
             "totalSteps": self.total_steps,
             "totalDurationSeconds": round(self.total_duration_seconds, 2),
+            "humanizationTimeMs": round(self.humanization_time_ms, 0),
             "actions": [a.to_dict() for a in self.actions],
             "recommendations": [r.to_dict() for r in self.recommendations],
             "cost": self.cost.to_dict(),

@@ -16,7 +16,7 @@ from typing import Any
 from ux_pilot.humanization.profile import HumanizationProfile
 from ux_pilot.humanization.mouse import generate_mouse_path
 from ux_pilot.humanization.typing import generate_keystroke_sequence
-from ux_pilot.humanization.scrolling import generate_scroll_plan
+from ux_pilot.humanization.scrolling import generate_inertia_deltas
 
 logger = logging.getLogger(__name__)
 
@@ -118,16 +118,25 @@ class HumanizationInjector:
         """Add micro-scroll adjustments after main scroll action.
 
         Humans rarely scroll exactly once — they micro-adjust.
-        Low attention span = more micro-scrolls.
+        Uses inertia physics (acceleration → deceleration) for realism.
         """
         micro_adjustments = random.randint(1, 3)
         for _ in range(micro_adjustments):
             delta = random.randint(-15, 15)
-            try:
-                await page.mouse.wheel(0, delta)
-                await asyncio.sleep(random.uniform(0.1, 0.3))
-            except Exception:
-                break
+            if abs(delta) >= 8:
+                # Use inertia deltas for noticeable adjustments
+                for step_delta in generate_inertia_deltas(delta):
+                    try:
+                        await page.mouse.wheel(0, step_delta)
+                        await asyncio.sleep(0.015)
+                    except Exception:
+                        break
+            else:
+                try:
+                    await page.mouse.wheel(0, delta)
+                except Exception:
+                    break
+            await asyncio.sleep(random.uniform(0.1, 0.3))
 
     async def _post_type_behavior(self, page: Any) -> None:
         """After typing, humans often pause or look around."""
