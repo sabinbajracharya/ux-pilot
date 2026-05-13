@@ -17,6 +17,8 @@ def create_llm(provider: str, model: str | None = None, api_key: str | None = No
         return _create_anthropic(model, api_key=api_key, **kwargs)
     elif provider == "openai":
         return _create_openai(model, api_key=api_key, **kwargs)
+    elif provider == "deepseek":
+        return _create_deepseek(model, api_key=api_key, **kwargs)
     elif provider == "groq":
         return _create_groq(model, api_key=api_key, **kwargs)
     elif provider == "ollama":
@@ -24,7 +26,7 @@ def create_llm(provider: str, model: str | None = None, api_key: str | None = No
     else:
         raise ValueError(
             f"Unsupported LLM provider: '{provider}'. "
-            f"Use one of: openai, anthropic, groq, ollama"
+            f"Use one of: openai, anthropic, deepseek, groq, ollama"
         )
 
 
@@ -53,6 +55,19 @@ def _create_groq(model: str | None = None, api_key: str | None = None, **kwargs)
     return ChatOpenAI(
         model=model or "meta-llama/llama-4-scout-17b-16e-instruct",
         base_url="https://api.groq.com/openai/v1",
+        api_key=resolved_key,
+        dont_force_structured_output=True,
+        **kwargs,
+    )
+
+
+def _create_deepseek(model: str | None = None, api_key: str | None = None, **kwargs):
+    from browser_use import ChatOpenAI
+
+    resolved_key = api_key or os.environ.get("DEEPSEEK_API_KEY", "")
+    return ChatOpenAI(
+        model=model or "deepseek-chat",
+        base_url="https://api.deepseek.com/v1",
         api_key=resolved_key,
         dont_force_structured_output=True,
         **kwargs,

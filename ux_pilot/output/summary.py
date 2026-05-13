@@ -40,6 +40,17 @@ def print_summary(console: Console, result: RunResult) -> None:
         )
         parts.append(f"[bold]Emotions:[/] {emojis}")
 
+    # Notable inner thoughts (persona monologues from actions)
+    notable_monologues = [
+        a.monologue for a in result.actions
+        if a.monologue and len(a.monologue) > 10
+    ][-3:]  # Last 3 meaningful monologues
+    if notable_monologues:
+        parts.append("")
+        parts.append("[bold]Notable thoughts:[/]")
+        for m in notable_monologues:
+            parts.append(f'  [dim italic]"💭 {m[:120]}"[/]')
+
     # Frustration
     frust = result.frustration_level
     width = 15

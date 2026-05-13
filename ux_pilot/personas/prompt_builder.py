@@ -76,7 +76,7 @@ class PersonaPromptBuilder:
             self._personality_layer(traits),
             self._behavioral_layer(ruleset),
             self._goal_layer(task_description, success_criteria),
-            self._constraint_layer(target_url=target_url),
+            self._constraint_layer(traits=traits, target_url=target_url),
         ])
 
     def _identity_layer(self, demographics: dict | None, goals: list[str] | None) -> str:
@@ -139,18 +139,64 @@ class PersonaPromptBuilder:
         ]
         return "\n".join(lines)
 
-    def _constraint_layer(self, target_url: str | None = None) -> str:
-        base = """CRITICAL CONSTRAINTS:
-- Stay in character. Do NOT suddenly become more efficient than your personality allows.
-- If you are low-tech-literacy, you MUST struggle with complex UI patterns even if you "know" the answer.
-- If you are high-neuroticism, you MUST express frustration even if the task is going well.
-- Do NOT optimize for task completion speed. Take the natural amount of time for your traits.
-- Express inner thoughts honestly — confusion, satisfaction, frustration, delight.
+    def _constraint_layer(self, traits: dict[str, int] | None = None, target_url: str | None = None) -> str:
+        t = traits or {}
+        neuroticism = t.get("neuroticism", 50)
+        tech = t.get("tech_literacy", 50)
+        conscientiousness = t.get("conscientiousness", 50)
+
+        # Persona-specific voice guidance
+        voice = ""
+        if neuroticism >= 75:
+            voice = "\nVOICE: You use anxious, self-doubting language. You second-guess decisions. You worry aloud about making mistakes."
+        elif neuroticism >= 55:
+            voice = "\nVOICE: You occasionally express worry. You notice small issues. You're cautious but not panicked."
+        elif neuroticism <= 25:
+            voice = "\nVOICE: You are calm and collected. Problems don't rattle you. You speak with quiet confidence."
+
+        if tech <= 30:
+            voice += "\nVOICE: You describe UI elements by how they LOOK ('the three lines button', 'that dropdown thing'), not by proper names ('hamburger menu', 'select')."
+
+        # Frustration response pattern
+        if neuroticism >= 75:
+            frustration_response = (
+                "When frustrated: You panic, freeze briefly, then either abandon or try something random. "
+                "You mutter things like 'why doesn't this work?!' or 'I'm doing something wrong, aren't I?'"
+            )
+        elif neuroticism >= 55:
+            frustration_response = (
+                "When frustrated: You sigh, re-read instructions, try one more time, then consider giving up. "
+                "You think 'this shouldn't be this hard...'"
+            )
+        else:
+            frustration_response = (
+                "When frustrated: You calmly try alternative approaches. You think 'ok, that didn't work, let me try another way.'"
+            )
+
+        # Decision pattern
+        if conscientiousness >= 75:
+            decision_style = "Decision style: You compare ALL options before choosing. You read details, weigh pros/cons. This takes time."
+        elif conscientiousness <= 30:
+            decision_style = "Decision style: You pick the first option that looks good. You don't compare or read details."
+        else:
+            decision_style = "Decision style: You make reasonable choices. You compare a few options but don't obsess."
+
+        base = f"""CRITICAL CONSTRAINTS:
+- Stay in character at ALL times. Do NOT become more efficient than your personality allows.
+- If you are low-tech-literacy, you MUST struggle with complex UI patterns even if you 'know' the answer.
+- If you are high-neuroticism, you MUST express frustration and anxiety even when things go smoothly.
+- Take the natural amount of time for your trait levels — do not rush.
+- Express inner thoughts honestly and in character — confusion, satisfaction, frustration, delight.{voice}
+
+{decision_style}
+
+{frustration_response}
 
 SELF-CHECK (every 5 actions):
 - Am I behaving consistently with my personality traits?
 - Have I been too efficient or too patient for my trait levels?
-- Am I expressing emotions appropriate to my neuroticism level?"""
+- Am I expressing emotions appropriate to my neuroticism level?
+- Does my decision-making style match my conscientiousness level?"""
 
         if target_url:
             domain = urlparse(target_url).netloc

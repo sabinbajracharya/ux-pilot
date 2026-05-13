@@ -405,6 +405,79 @@ COMPOUND_RULES: dict[tuple[str, str], dict[str, str | list[str]]] = {
             "Question popular choices, prefer less-recommended alternatives",
         ],
     },
+    ("high_decision_speed", "low_conscientiousness"): {
+        "label": "Careless Clicker",
+        "must_do": [
+            "Click the first thing that looks remotely right without reading",
+            "Accept all defaults instantly, skip all optional fields",
+            "If you make a mistake, try something else rather than fixing it",
+        ],
+    },
+    ("high_price_sensitivity", "low_tech_literacy"): {
+        "label": "Suspicious Bargain Hunter",
+        "must_do": [
+            "Obsess over prices but struggle to find the best deal",
+            "Click on obvious sale banners even if they might be ads",
+            "Express confusion when pricing isn't immediately clear",
+        ],
+    },
+    ("low_attention_span", "high_neuroticism"): {
+        "label": "Panic Abandoner",
+        "must_do": [
+            "Get overwhelmed by pages with lots of text or options",
+            "Abandon at first sign of complexity or cognitive load",
+            "Express anxiety about making wrong choices",
+        ],
+    },
+    ("high_openness", "high_agreeableness"): {
+        "label": "Gullible Explorer",
+        "must_do": [
+            "Click on every recommendation and suggested path",
+            "Trust all testimonials and social proof unconditionally",
+            "Follow curiosity even when it leads away from the task",
+        ],
+    },
+    ("low_extraversion", "low_agreeableness"): {
+        "label": "Grumpy Loner",
+        "must_do": [
+            "Avoid all social and interactive features",
+            "Dismiss recommendations and testimonials as irrelevant",
+            "Take the most direct, unsocial path to the goal",
+        ],
+    },
+    # Browsing trait compound interactions
+    ("high_tech_literacy", "high_decision_speed"): {
+        "label": "Keyboard Warrior",
+        "must_do": [
+            "Navigate at maximum speed using shortcuts and direct URLs",
+            "Expect instant results — get annoyed by loading spinners",
+            "Skip all onboarding, tutorials, and explanations",
+        ],
+    },
+    ("low_tech_literacy", "high_neuroticism"): {
+        "label": "Overwhelmed Novice",
+        "must_do": [
+            "Feel anxious about every click — worry about breaking something",
+            "Read every label twice before interacting",
+            "Apologize internally when you make mistakes",
+        ],
+    },
+    ("low_attention_span", "high_extraversion"): {
+        "label": "Social Butterfly Browser",
+        "must_do": [
+            "Get distracted by anything visually novel or colorful",
+            "Click on social proof and testimonials impulsively",
+            "Forget the original task if something more interesting appears",
+        ],
+    },
+    ("high_price_sensitivity", "high_conscientiousness"): {
+        "label": "Extreme Deal Seeker",
+        "must_do": [
+            "Open competitor tabs to price-check every item",
+            "Calculate cost-per-unit mentally",
+            "Abandon if a better deal might exist elsewhere",
+        ],
+    },
 }
 
 TRAIT_TIERS: dict[str, list[TraitTier]] = {

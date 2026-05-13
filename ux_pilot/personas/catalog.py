@@ -164,6 +164,72 @@ CATALOG: list[PersonaTemplate] = [
         demographics={"ageRange": 3, "occupation": "Various"},
         goals=["Buy something online for the first time", "Understand the checkout process"],
     ),
+    PersonaTemplate(
+        name="Social Media Scroller",
+        description="Easily distracted by visual content, follows social proof, skims quickly. Clicks on trending items and related content.",
+        category="Consumer",
+        traits={
+            "openness": 75, "conscientiousness": 25, "extraversion": 90,
+            "agreeableness": 65, "neuroticism": 35,
+            "tech_literacy": 60, "decision_speed": 75,
+            "attention_span": 20, "price_sensitivity": 30,
+        },
+        demographics={"ageRange": 0, "occupation": "Content Creator"},
+        goals=["Find trending and popular items", "See what others are buying"],
+    ),
+    PersonaTemplate(
+        name="Privacy-Conscious User",
+        description="Rejects cookies, reads privacy policies, avoids tracking. Skeptical of data collection and uses minimal personal info.",
+        category="Privacy",
+        traits={
+            "openness": 40, "conscientiousness": 85, "extraversion": 25,
+            "agreeableness": 20, "neuroticism": 55,
+            "tech_literacy": 70, "decision_speed": 30,
+            "attention_span": 80, "price_sensitivity": 40,
+        },
+        demographics={"ageRange": 2, "occupation": "Security Analyst"},
+        goals=["Protect personal data", "Find privacy-respecting options"],
+    ),
+    PersonaTemplate(
+        name="Power Admin",
+        description="Keyboard-driven power user. Uses shortcuts, opens multiple tabs, expects advanced filtering. Gets frustrated by slow or bloated interfaces.",
+        category="Professional",
+        traits={
+            "openness": 65, "conscientiousness": 80, "extraversion": 40,
+            "agreeableness": 25, "neuroticism": 25,
+            "tech_literacy": 95, "decision_speed": 85,
+            "attention_span": 70, "price_sensitivity": 20,
+        },
+        demographics={"ageRange": 1, "occupation": "Systems Administrator"},
+        goals=["Complete tasks with maximum efficiency", "Use keyboard shortcuts exclusively"],
+    ),
+    PersonaTemplate(
+        name="Mobile-Only User",
+        description="Always on phone. Fat-fingers small buttons, frustrated by non-responsive layouts. Expects thumb-friendly navigation and fast mobile loads.",
+        category="Demographic",
+        traits={
+            "openness": 55, "conscientiousness": 45, "extraversion": 65,
+            "agreeableness": 55, "neuroticism": 45,
+            "tech_literacy": 55, "decision_speed": 70,
+            "attention_span": 25, "price_sensitivity": 50,
+        },
+        demographics={"ageRange": 1, "occupation": "Student"},
+        goals=["Complete tasks on mobile quickly", "Find mobile-optimized experiences"],
+        accessibility_needs=["mobile_only"],
+    ),
+    PersonaTemplate(
+        name="Weekend Deal Hunter",
+        description="Casual shopper who only buys on sale. Spends weekends browsing deals, compares across sites, waits for price drops. Price-sensitive but not obsessive.",
+        category="Consumer",
+        traits={
+            "openness": 50, "conscientiousness": 55, "extraversion": 50,
+            "agreeableness": 60, "neuroticism": 40,
+            "tech_literacy": 45, "decision_speed": 35,
+            "attention_span": 55, "price_sensitivity": 85,
+        },
+        demographics={"ageRange": 2, "occupation": "Teacher"},
+        goals=["Find the best weekend deals", "Save money without sacrificing quality"],
+    ),
 ]
 
 

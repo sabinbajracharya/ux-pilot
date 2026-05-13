@@ -31,11 +31,22 @@ def _parse_json(text: str) -> dict:
     return {}
 
 
-def _build_litellm_model(provider: str, model: str) -> str:
-    """Build litellm model string (e.g. 'groq/llama3-70b')."""
-    if provider == "openai" or model.startswith(f"{provider}/"):
-        return model
-    return f"{provider}/{model}"
+def _build_litellm_model(provider: str, model: str | None) -> str:
+    """Build litellm model string (e.g. 'deepseek/deepseek-chat').
+
+    Falls back to provider-appropriate defaults when model is not specified.
+    """
+    resolved = model or {
+        "openai": "gpt-4o-mini",
+        "anthropic": "claude-sonnet-4-20250514",
+        "deepseek": "deepseek-chat",
+        "groq": "llama-3.3-70b-versatile",
+        "ollama": "llama3.2",
+    }.get(provider, "gpt-4o-mini")
+
+    if resolved.startswith(f"{provider}/"):
+        return resolved
+    return f"{provider}/{resolved}"
 
 
 @dataclass
@@ -56,7 +67,7 @@ class AnalysisResult:
 async def analyze_run(
     result: RunResult,
     provider: str = "openai",
-    model: str = "gpt-4o-mini",
+    model: str | None = None,
     api_key: str | None = None,
 ) -> AnalysisResult:
     """Run post-completion AI analysis: summary + recommendations.

@@ -3,16 +3,31 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import sys
-from typing import Annotated, Optional
+from typing import Annotated, Optional, TYPE_CHECKING
 
 import typer
 from rich.console import Console
+from rich.logging import RichHandler
 from rich.table import Table
 from rich.panel import Panel
 from rich.text import Text
 
 from ux_pilot import __version__
+from ux_pilot.runner.commands import run_single, run_multi, run_instances
+
+if TYPE_CHECKING:
+    from ux_pilot.personas.loader import PersonaTemplate
+
+# Configure root logger with Rich handler for visible log output
+logging.basicConfig(
+    level=logging.WARNING,
+    format="%(message)s",
+    datefmt="[%X]",
+    handlers=[RichHandler(console=Console(stderr=True), rich_tracebacks=True, show_time=False)],
+)
+logger = logging.getLogger("ux_pilot")
 
 app = typer.Typer(
     name="ux-pilot",
@@ -157,7 +172,7 @@ def run(
     ] = None,
     llm_provider: Annotated[
         Optional[str],
-        typer.Option("--llm-provider", help="LLM provider: openai, anthropic, groq, ollama"),
+        typer.Option("--llm-provider", help="LLM provider: openai, anthropic, deepseek, groq, ollama"),
     ] = None,
     llm_model: Annotated[
         Optional[str],
@@ -183,6 +198,10 @@ def run(
         bool,
         typer.Option("--no-save", help="Don't save to history"),
     ] = False,
+    instances: Annotated[
+        int,
+        typer.Option("--instances", "-n", help="Run the same persona N times for statistical validity"),
+    ] = 1,
 ) -> None:
     """Run an AI persona against a website to find UX issues."""
     from ux_pilot.config import Settings
@@ -203,20 +222,21 @@ def run(
         output_dir=output,
     )
 
-    # Validate API key
-    if settings.llm_provider != "ollama" and not settings.get_api_key():
+    # Validate API key (ollama uses local server, no key needed)
+    if settings.llm_provider not in ("ollama",) and not settings.get_api_key():
+        provider_env = settings.llm_provider.upper() + "_API_KEY"
         console.print(
             f"[bold red]Error:[/] No API key found for provider '{settings.llm_provider}'.\n"
             f"Set it via:\n"
-            f"  • Environment variable: [cyan]UX_PILOT_LLM_API_KEY[/] or [cyan]OPENAI_API_KEY[/]\n"
+            f"  • Environment variable: [cyan]{provider_env}[/] or [cyan]UX_PILOT_LLM_API_KEY[/]\n"
             f"  • Config file: [cyan]~/.ux-pilot/config.yaml[/]\n"
-            f"  • CLI flag: [cyan]--llm-provider ollama[/] (for local models)"
+            f"  • Or use a local model: [cyan]--llm-provider ollama[/]"
         )
         raise typer.Exit(1)
 
     # Resolve persona(s)
     persona_names = persona if persona else [None]
-    is_multi = len(persona_names) > 1
+    is_multi = len(persona_names) > 1 or instances > 1
 
     templates = []
     for pname in persona_names:
@@ -231,11 +251,15 @@ def run(
             console.print(f"[bold red]Error:[/] {e}")
             raise typer.Exit(1)
 
-    if is_multi:
-        # Multi-persona comparison mode
-        _run_multi(templates, url, task, settings, success_criteria, output, no_save)
+    if instances > 1:
+        run_instances(templates[0], url, task, settings, console, instances,
+                      success_criteria=success_criteria, output=output, no_save=no_save)
+    elif is_multi:
+        run_multi(templates, url, task, settings, console,
+                  success_criteria=success_criteria, output=output, no_save=no_save)
     else:
-        _run_single(templates[0], url, task, settings, success_criteria, output, no_save)
+        run_single(templates[0], url, task, settings, console,
+                   success_criteria=success_criteria, output=output, no_save=no_save)
 
 
 def _check_playwright() -> bool:
@@ -253,158 +277,6 @@ def _check_playwright() -> bool:
         return False
 
 
-def _run_single(template, url, task, settings, success_criteria, output, no_save):
-    """Run a single persona with live dashboard."""
-    from ux_pilot.personas.prompt_builder import PersonaPromptBuilder
-    from ux_pilot.personas.traits import TRAIT_EMOJI, TRAIT_SHORT
-    from ux_pilot.output.live import LiveDashboard
-    from ux_pilot.output.summary import print_summary
-    from ux_pilot.runner.agent import AgentRunner
-
-    prompt_builder = PersonaPromptBuilder()
-    system_prompt = prompt_builder.build(
-        traits=template.traits,
-        task_description=task,
-        success_criteria=success_criteria,
-        demographics=dict(template.demographics) if template.demographics else None,
-        goals=list(template.goals) if template.goals else None,
-        target_url=url,
-    )
-
-    # Display run header
-    console.print()
-    console.print(f"[bold cyan]🎭 Persona:[/] {template.name} ({template.category})")
-    console.print(f"[dim]   {template.description}[/]")
-
-    top_traits = sorted(template.traits.items(), key=lambda t: abs(t[1] - 50), reverse=True)[:4]
-    trait_summary = " · ".join(
-        f"{TRAIT_EMOJI.get(k, '•')} {v} {TRAIT_SHORT.get(k, k)}" for k, v in top_traits
-    )
-    console.print(f"[dim]   Traits: {trait_summary}[/]")
-    console.print(f"[bold cyan]🌐 URL:[/]     {url}")
-    console.print(f"[bold cyan]📋 Task:[/]    {task}")
-    console.print(f"[dim]LLM: {settings.llm_provider}/{settings.llm_model or 'default'} │ Max: {settings.max_actions} actions, {settings.max_duration_minutes}min[/]")
-    console.print()
-
-    dashboard = LiveDashboard(
-        console=console,
-        persona_name=template.name,
-        target_url=url,
-        task=task,
-        trait_summary=trait_summary,
-        max_actions=settings.max_actions,
-        max_duration_minutes=settings.max_duration_minutes,
-    )
-
-    runner = AgentRunner(
-        target_url=url,
-        task_description=task,
-        settings=settings,
-        system_prompt=system_prompt,
-        persona_name=template.name,
-        traits=dict(template.traits),
-        success_criteria=success_criteria,
-        on_step=lambda entry: dashboard.update(
-            entry,
-            elapsed_seconds=runner._state.elapsed_seconds,
-            cost_usd=runner._state.cost.estimated_cost_usd,
-        ),
-    )
-
-    console.print("[dim]Starting browser...[/]")
-    dashboard.start()
-    try:
-        result = asyncio.run(runner.run())
-    finally:
-        dashboard.stop()
-
-    _analyze_result(result, settings)
-    print_summary(console, result)
-
-    if not no_save:
-        _save_to_history(result)
-    if output:
-        from ux_pilot.output.export import export_json, export_markdown
-        export_json(result, output, console)
-        export_markdown(result, output, console)
-
-
-def _run_multi(templates, url, task, settings, success_criteria, output, no_save):
-    """Run multiple personas sequentially with comparison table."""
-    from ux_pilot.runner.orchestrator import run_multi_persona
-    from ux_pilot.output.comparison import print_comparison
-    from ux_pilot.output.summary import print_summary
-
-    console.print(f"\n[bold cyan]🎭 Multi-persona run: {len(templates)} personas[/]")
-    console.print(f"[bold cyan]🌐 URL:[/]  {url}")
-    console.print(f"[bold cyan]📋 Task:[/] {task}")
-    console.print()
-
-    results = asyncio.run(run_multi_persona(
-        url=url,
-        task=task,
-        personas=templates,
-        settings=settings,
-        console=console,
-        success_criteria=success_criteria,
-    ))
-
-    # Analyze each result
-    for result in results:
-        _analyze_result(result, settings)
-
-    # Print comparison table
-    print_comparison(console, results)
-
-    # Print individual summaries
-    for result in results:
-        print_summary(console, result)
-        if not no_save:
-            _save_to_history(result)
-
-    if output:
-        from ux_pilot.output.export import export_json, export_markdown
-        for result in results:
-            export_json(result, output, console)
-            export_markdown(result, output, console)
-
-
-def _analyze_result(result, settings):
-    """Run post-completion AI analysis on a result."""
-    console.print(f"[dim]Analyzing {result.persona_name}...[/]")
-    try:
-        from ux_pilot.analysis.analyzer import analyze_run
-        analysis = asyncio.run(analyze_run(
-            result=result,
-            provider=settings.llm_provider,
-            model=settings.llm_model or "gpt-4o-mini",
-            api_key=settings.get_api_key(),
-        ))
-        if analysis.summary:
-            result.summary = analysis.summary
-        if analysis.recommendations:
-            result.recommendations = analysis.recommendations
-        if analysis.satisfaction_score:
-            result.satisfaction_score = analysis.satisfaction_score
-        result.cost.input_tokens += analysis.input_tokens
-        result.cost.output_tokens += analysis.output_tokens
-        est = (analysis.input_tokens * 0.15 + analysis.output_tokens * 0.60) / 1_000_000
-        result.cost.estimated_cost_usd += est
-    except Exception as e:
-        console.print(f"[dim yellow]Analysis skipped: {e}[/]")
-
-
-def _save_to_history(result):
-    """Save result to SQLite history."""
-    try:
-        from ux_pilot.storage.history import save_run
-        run_id = save_run(result)
-        console.print(f"[dim]💾 Saved to history (ID: {run_id})[/]")
-    except Exception as e:
-        console.print(f"[dim yellow]History save failed: {e}[/]")
-
-
-# ── history commands ───────────────────────────────────────────────────────
 
 @history_app.command("list")
 def history_list(

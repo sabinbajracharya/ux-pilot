@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     )
 
     # LLM configuration
-    llm_provider: str = Field(default="openai", description="LLM provider: openai, anthropic, groq, ollama")
+    llm_provider: str = Field(default="openai", description="LLM provider: openai, anthropic, deepseek, groq, ollama")
     llm_model: str | None = Field(default=None, description="Model name (provider-specific default if not set)")
     llm_api_key: str | None = Field(default=None, description="API key (also reads OPENAI_API_KEY etc.)")
 
@@ -66,6 +66,7 @@ class Settings(BaseSettings):
         provider_env_map = {
             "openai": "OPENAI_API_KEY",
             "anthropic": "ANTHROPIC_API_KEY",
+            "deepseek": "DEEPSEEK_API_KEY",
             "groq": "GROQ_API_KEY",
         }
         env_var = provider_env_map.get(self.llm_provider)

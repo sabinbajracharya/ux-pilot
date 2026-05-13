@@ -99,6 +99,10 @@ class TraitTranslator:
             "extraversion": _level("extraversion"),
             "agreeableness": _level("agreeableness"),
             "neuroticism": _level("neuroticism"),
+            "tech_literacy": _level("tech_literacy"),
+            "decision_speed": _level("decision_speed"),
+            "attention_span": _level("attention_span"),
+            "price_sensitivity": _level("price_sensitivity"),
         }
 
         for (key1, key2), rule_data in COMPOUND_RULES.items():
