@@ -172,11 +172,19 @@ def run(
     ] = None,
     llm_provider: Annotated[
         Optional[str],
-        typer.Option("--llm-provider", help="LLM provider: openai, anthropic, deepseek, groq, ollama"),
+        typer.Option("--llm-provider", help="LLM provider: openai, anthropic, deepseek, groq, ollama, custom"),
     ] = None,
     llm_model: Annotated[
         Optional[str],
-        typer.Option("--llm-model", help="LLM model name"),
+        typer.Option("--llm-model", help="LLM model name (required)"),
+    ] = None,
+    llm_base_url: Annotated[
+        Optional[str],
+        typer.Option("--llm-base-url", help="Base URL for LLM API (required for custom, overrides known provider URLs)"),
+    ] = None,
+    llm_api_key: Annotated[
+        Optional[str],
+        typer.Option("--llm-api-key", help="API key (overrides LLM_API_KEY env var)"),
     ] = None,
     headed: Annotated[
         bool,
@@ -216,22 +224,16 @@ def run(
     settings = Settings.load(
         llm_provider=llm_provider,
         llm_model=llm_model,
+        llm_base_url=llm_base_url,
+        llm_api_key=llm_api_key,
         headed=headed if headed else None,
         max_actions=max_actions,
         max_duration_minutes=max_duration,
         output_dir=output,
     )
 
-    # Validate API key (ollama uses local server, no key needed)
-    if settings.llm_provider not in ("ollama",) and not settings.get_api_key():
-        provider_env = settings.llm_provider.upper() + "_API_KEY"
-        console.print(
-            f"[bold red]Error:[/] No API key found for provider '{settings.llm_provider}'.\n"
-            f"Set it via:\n"
-            f"  • Environment variable: [cyan]{provider_env}[/] or [cyan]UX_PILOT_LLM_API_KEY[/]\n"
-            f"  • Config file: [cyan]~/.ux-pilot/config.yaml[/]\n"
-            f"  • Or use a local model: [cyan]--llm-provider ollama[/]"
-        )
+    # Validate LLM config (provider, model, API key)
+    if not _validate_llm_config(settings, console):
         raise typer.Exit(1)
 
     # Resolve persona(s)
@@ -276,6 +278,31 @@ def _check_playwright() -> bool:
         )
         return False
 
+
+def _validate_llm_config(settings, console) -> bool:
+    """Validate LLM provider, model, and API key. Prints errors and returns False on failure."""
+    try:
+        settings.validate_llm()
+    except ValueError as e:
+        console.print(f"[bold red]Error:[/] {e}")
+        return False
+
+    # Ollama is local — no API key needed
+    if settings.llm_provider == "ollama":
+        return True
+
+    if not settings.get_api_key():
+        console.print(
+            f"[bold red]Error:[/] No API key found for provider '{settings.llm_provider}'.\n"
+            f"Set it via:\n"
+            f"  • Environment variable: [cyan]LLM_API_KEY[/] or [cyan]UX_PILOT_LLM_API_KEY[/]\n"
+            f"  • Config file: [cyan]~/.ux-pilot/config.yaml[/] (llm_api_key)\n"
+            f"  • CLI option: [cyan]--llm-api-key <key>[/]\n"
+            f"  • Or use a local model: [cyan]--llm-provider ollama[/]"
+        )
+        return False
+
+    return True
 
 
 @history_app.command("list")
@@ -372,7 +399,15 @@ def benchmark(
     ] = None,
     llm_model: Annotated[
         Optional[str],
-        typer.Option("--llm-model", help="LLM model name"),
+        typer.Option("--llm-model", help="LLM model name (required)"),
+    ] = None,
+    llm_base_url: Annotated[
+        Optional[str],
+        typer.Option("--llm-base-url", help="Base URL for LLM API"),
+    ] = None,
+    llm_api_key: Annotated[
+        Optional[str],
+        typer.Option("--llm-api-key", help="API key (overrides LLM_API_KEY env var)"),
     ] = None,
     output: Annotated[
         Optional[str],
@@ -389,10 +424,12 @@ def benchmark(
     if not _check_playwright():
         raise typer.Exit(1)
 
-    settings = Settings.load(llm_provider=llm_provider, llm_model=llm_model)
+    settings = Settings.load(
+        llm_provider=llm_provider, llm_model=llm_model,
+        llm_base_url=llm_base_url, llm_api_key=llm_api_key,
+    )
 
-    if settings.llm_provider not in ("ollama",) and not settings.get_api_key():
-        console.print(f"[bold red]Error:[/] No API key for '{settings.llm_provider}'")
+    if not _validate_llm_config(settings, console):
         raise typer.Exit(1)
 
     # Resolve scenarios
@@ -407,7 +444,7 @@ def benchmark(
     # Resolve personas
     persona_names = personas if personas else [p.name for p in CATALOG[:6]]  # Default: first 6
     console.print(f"[bold]🚀 Benchmark: {len(scenarios)} scenarios × {len(persona_names)} personas × {instances} instances[/]")
-    console.print(f"[dim]LLM: {settings.llm_provider}/{settings.llm_model or 'default'}[/]")
+    console.print(f"[dim]LLM: {settings.llm_provider}/{settings.llm_model}[/]")
     console.print()
 
     results = asyncio.run(run_benchmark(

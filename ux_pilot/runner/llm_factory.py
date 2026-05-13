@@ -3,84 +3,95 @@
 from __future__ import annotations
 
 import logging
-import os
+
+from ux_pilot.config import KNOWN_BASE_URLS, SUGGESTED_MODELS
 
 logger = logging.getLogger(__name__)
 
 
-def create_llm(provider: str, model: str | None = None, api_key: str | None = None, **kwargs):
+def create_llm(
+    provider: str,
+    model: str,
+    api_key: str | None = None,
+    base_url: str | None = None,
+    **kwargs,
+):
     """Create an LLM instance for the given provider.
 
     Returns a chat model instance compatible with browser-use Agent.
+
+    Args:
+        provider: LLM provider name (openai, anthropic, deepseek, groq, ollama, custom).
+        model: Model name (required, no default).
+        api_key: API key for the provider.
+        base_url: Base URL override (required for custom, optional for known providers).
     """
-    if provider in ("claude", "anthropic"):
-        return _create_anthropic(model, api_key=api_key, **kwargs)
-    elif provider == "openai":
-        return _create_openai(model, api_key=api_key, **kwargs)
-    elif provider == "deepseek":
-        return _create_deepseek(model, api_key=api_key, **kwargs)
-    elif provider == "groq":
-        return _create_groq(model, api_key=api_key, **kwargs)
-    elif provider == "ollama":
-        return _create_ollama(model, **kwargs)
-    else:
+    if not model:
+        suggestions = SUGGESTED_MODELS.get(provider, [])
+        hint = f" Suggested models: {', '.join(suggestions)}" if suggestions else ""
         raise ValueError(
-            f"Unsupported LLM provider: '{provider}'. "
-            f"Use one of: openai, anthropic, deepseek, groq, ollama"
+            f"No LLM model specified for provider '{provider}'.{hint}"
         )
 
+    # Anthropic uses its own browser-use wrapper
+    if provider in ("claude", "anthropic"):
+        return _create_anthropic(model, api_key=api_key, base_url=base_url, **kwargs)
 
-def _create_anthropic(model: str | None = None, api_key: str | None = None, **kwargs):
+    # All other providers use ChatOpenAI (OpenAI-compatible API)
+    return _create_openai_compatible(
+        provider=provider,
+        model=model,
+        api_key=api_key,
+        base_url=base_url,
+        **kwargs,
+    )
+
+
+def _create_anthropic(
+    model: str,
+    api_key: str | None = None,
+    base_url: str | None = None,
+    **kwargs,
+):
     from browser_use import ChatAnthropic
 
-    extra = {}
+    extra: dict = {}
     if api_key:
         extra["api_key"] = api_key
-    return ChatAnthropic(model=model or "claude-sonnet-4-20250514", **extra, **kwargs)
+    if base_url:
+        extra["base_url"] = base_url
+    return ChatAnthropic(model=model, **extra, **kwargs)
 
 
-def _create_openai(model: str | None = None, api_key: str | None = None, **kwargs):
+def _create_openai_compatible(
+    provider: str,
+    model: str,
+    api_key: str | None = None,
+    base_url: str | None = None,
+    **kwargs,
+):
     from browser_use import ChatOpenAI
 
-    extra = {}
+    # Resolve base URL: explicit override > known provider URL
+    resolved_url = base_url or KNOWN_BASE_URLS.get(provider)
+    if not resolved_url:
+        raise ValueError(
+            f"No base URL known for provider '{provider}'.\n"
+            f"Provide one via --llm-base-url or set llm_base_url in ~/.ux-pilot/config.yaml\n"
+            f"Known providers with pre-mapped URLs: {', '.join(KNOWN_BASE_URLS)}"
+        )
+
+    extra: dict = {}
     if api_key:
         extra["api_key"] = api_key
-    return ChatOpenAI(model=model or "gpt-4o-mini", **extra, **kwargs)
 
+    # Non-OpenAI providers may not support structured output
+    if provider not in ("openai",):
+        kwargs.setdefault("dont_force_structured_output", True)
 
-def _create_groq(model: str | None = None, api_key: str | None = None, **kwargs):
-    from browser_use import ChatOpenAI
-
-    resolved_key = api_key or os.environ.get("GROQ_API_KEY", "")
     return ChatOpenAI(
-        model=model or "meta-llama/llama-4-scout-17b-16e-instruct",
-        base_url="https://api.groq.com/openai/v1",
-        api_key=resolved_key,
-        dont_force_structured_output=True,
-        **kwargs,
-    )
-
-
-def _create_deepseek(model: str | None = None, api_key: str | None = None, **kwargs):
-    from browser_use import ChatOpenAI
-
-    resolved_key = api_key or os.environ.get("DEEPSEEK_API_KEY", "")
-    return ChatOpenAI(
-        model=model or "deepseek-v4-pro",
-        base_url="https://api.deepseek.com/v1",
-        api_key=resolved_key,
-        dont_force_structured_output=True,
-        **kwargs,
-    )
-
-
-def _create_ollama(model: str | None = None, base_url: str | None = None, **kwargs):
-    from browser_use import ChatOpenAI
-
-    url = base_url or os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
-    return ChatOpenAI(
-        model=model or "llama3",
-        base_url=f"{url}/v1",
-        api_key="ollama",
+        model=model,
+        base_url=resolved_url,
+        **extra,
         **kwargs,
     )

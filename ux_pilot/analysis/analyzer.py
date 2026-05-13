@@ -34,19 +34,17 @@ def _parse_json(text: str) -> dict:
 def _build_litellm_model(provider: str, model: str | None) -> str:
     """Build litellm model string (e.g. 'deepseek/deepseek-chat').
 
-    Falls back to provider-appropriate defaults when model is not specified.
+    Model is required — no fallback default.
     """
-    resolved = model or {
-        "openai": "gpt-4o-mini",
-        "anthropic": "claude-sonnet-4-20250514",
-        "deepseek": "deepseek-chat",
-        "groq": "llama-3.3-70b-versatile",
-        "ollama": "llama3.2",
-    }.get(provider, "gpt-4o-mini")
+    if not model:
+        raise ValueError(
+            f"LLM model is required for analysis with provider '{provider}'.\n"
+            f"Pass --llm-model or set UX_PILOT_LLM_MODEL."
+        )
 
-    if resolved.startswith(f"{provider}/"):
-        return resolved
-    return f"{provider}/{resolved}"
+    if model.startswith(f"{provider}/"):
+        return model
+    return f"{provider}/{model}"
 
 
 @dataclass

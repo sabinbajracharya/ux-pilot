@@ -79,7 +79,6 @@ class PersonaStateGenerator:
         """Send a lightweight state-generation call. Returns parsed JSON or None.
 
         Uses OpenAI-compatible API from the LLM instance (provider-agnostic).
-        Falls back to 'deepseek-chat' if the model returns empty responses.
         Costs ~$0.0001 per call.
         """
         try:
@@ -97,9 +96,8 @@ class PersonaStateGenerator:
                 client_kwargs["base_url"] = base_url
             client = AsyncOpenAI(**client_kwargs)
 
-            model_to_use = model if "v4-pro" not in str(model) else "deepseek-chat"
             response = await client.chat.completions.create(
-                model=model_to_use,
+                model=model,
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=200,
                 temperature=0.9,

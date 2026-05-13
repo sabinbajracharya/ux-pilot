@@ -1,5 +1,7 @@
 """Integration tests for CLI command implementations."""
 
+import os
+
 import pytest
 from ux_pilot.analysis.models import RunResult
 from ux_pilot.personas.loader import PersonaTemplate
@@ -22,7 +24,7 @@ SAMPLE_TEMPLATE = PersonaTemplate(
 
 class TestAnalyzeResult:
     def test_handles_missing_model(self):
-        """analyze_result should not crash when model is None."""
+        """analyze_result should handle missing model gracefully (analysis is best-effort)."""
         from ux_pilot.runner.commands import analyze_result
         from ux_pilot.config import Settings
         from rich.console import Console
@@ -33,12 +35,9 @@ class TestAnalyzeResult:
             task_description="test", task_completed=True,
             summary="Done", total_steps=2, total_duration_seconds=10,
         )
-        # Should not raise — model=None triggers default fallback
         console = Console(width=80, force_terminal=True, color_system=None)
-        try:
-            analyze_result(result, settings, console)
-        except Exception:
-            pass  # LLM call will fail in test env, that's expected
+        # Should not crash — analysis gracefully skips when model is missing
+        analyze_result(result, settings, console)
 
 
 class TestSaveToHistory:
@@ -63,19 +62,20 @@ class TestRunSingleSetup:
 
         settings = Settings.load(
             llm_provider="deepseek",
-            llm_model="deepseek-v4-pro",
+            llm_model="deepseek-chat",
             max_actions=30,
         )
         assert settings.llm_provider == "deepseek"
-        assert settings.llm_model == "deepseek-v4-pro"
+        assert settings.llm_model == "deepseek-chat"
         assert settings.max_actions == 30
 
     def test_settings_api_key_resolution(self):
-        """get_api_key should resolve from provider env vars."""
+        """get_api_key should resolve from LLM_API_KEY env var."""
         from ux_pilot.config import Settings
-        import os
 
-        os.environ["DEEPSEEK_API_KEY"] = "test-key"
-        settings = Settings(llm_provider="deepseek")
-        assert settings.get_api_key() == "test-key"
-        del os.environ["DEEPSEEK_API_KEY"]
+        os.environ["LLM_API_KEY"] = "test-key"
+        try:
+            settings = Settings(llm_provider="deepseek", llm_model="deepseek-chat")
+            assert settings.get_api_key() == "test-key"
+        finally:
+            del os.environ["LLM_API_KEY"]

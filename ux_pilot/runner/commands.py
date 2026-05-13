@@ -50,7 +50,7 @@ def run_single(
     console.print(f"[dim]   Traits: {trait_summary}[/]")
     console.print(f"[bold cyan]🌐 URL:[/]     {url}")
     console.print(f"[bold cyan]📋 Task:[/]    {task}")
-    console.print(f"[dim]LLM: {settings.llm_provider}/{settings.llm_model or 'default'} │ "
+    console.print(f"[dim]LLM: {settings.llm_provider}/{settings.llm_model} │ "
                   f"Max: {settings.max_actions} actions, {settings.max_duration_minutes}min[/]")
     console.print()
 

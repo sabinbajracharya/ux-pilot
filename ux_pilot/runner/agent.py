@@ -215,6 +215,7 @@ class AgentRunner:
             provider=self.settings.llm_provider,
             model=self.settings.llm_model,
             api_key=api_key,
+            base_url=self.settings.llm_base_url,
         )
         llm = TokenTrackingWrapper(self._raw_llm, self._state.token_acc)
 
