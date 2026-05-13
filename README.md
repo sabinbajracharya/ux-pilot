@@ -5,7 +5,8 @@
 One command. Real users. Real friction. Real fixes.
 
 ```bash
-ux-pilot run --url "https://shop.example.com" --task "Find a phone under $500" --persona "Anxious First-Timer"
+ux-pilot run --url "https://shop.example.com" --task "Find a phone under $500" \
+  --persona "Anxious First-Timer" --llm-provider openai --llm-model gpt-4o-mini
 ```
 
 Watch an AI persona — with a real personality, real frustrations, real hesitations — navigate your site. When it's done, get a crisp report: *"Here's where users struggle. Here's what to fix. Here's why."*
@@ -25,23 +26,32 @@ After installation, the `ux-pilot` command is available whenever the venv is act
 ## Quick Start
 
 ```bash
-# Set your LLM API key
-export OPENAI_API_KEY="sk-..."
+# Set your LLM API key (single env var for all providers)
+export LLM_API_KEY="sk-..."
 
-# Run with a built-in persona
-ux-pilot run --url "https://books.toscrape.com" --task "Find a mystery book under £20"
+# Provider and model are required — no silent defaults
+ux-pilot run --url "https://books.toscrape.com" --task "Find a mystery book under £20" \
+  --llm-provider openai --llm-model gpt-4o-mini
 
 # Choose a specific persona
-ux-pilot run --url "https://shop.example.com" --task "Buy a smartphone" --persona "Anxious First-Timer"
+ux-pilot run --url "https://shop.example.com" --task "Buy a smartphone" \
+  --persona "Anxious First-Timer" --llm-provider deepseek --llm-model deepseek-chat
 
 # Compare multiple personas
 ux-pilot run --url "https://shop.example.com" --task "Buy a smartphone" \
   --persona "Tech-Savvy Professional" \
   --persona "Anxious First-Timer" \
-  --persona "Senior User"
+  --persona "Senior User" \
+  --llm-provider deepseek --llm-model deepseek-chat
+
+# Use a custom OpenAI-compatible provider
+ux-pilot run --url "https://example.com" --task "Sign up" \
+  --llm-provider custom --llm-base-url https://my-api.com/v1 --llm-model my-model \
+  --llm-api-key sk-...
 
 # Save results
-ux-pilot run --url "https://example.com" --task "Sign up" --output ./results
+ux-pilot run --url "https://example.com" --task "Sign up" \
+  --llm-provider openai --llm-model gpt-4o-mini --output ./results
 ```
 
 ## Built-in Personas
@@ -112,6 +122,7 @@ ux-pilot run --url "https://example.com" --task "Sign up" \
 | Command | Description |
 |---------|-------------|
 | `ux-pilot run` | Run a persona against a website |
+| `ux-pilot benchmark` | Run predefined scenarios against personas and generate comparison report |
 | `ux-pilot personas list` | List built-in personas |
 | `ux-pilot personas show <name>` | Show persona details |
 | `ux-pilot history list` | View past runs |
@@ -119,19 +130,21 @@ ux-pilot run --url "https://example.com" --task "Sign up" \
 
 ## Configuration
 
-Settings are resolved with this priority: **CLI flags → env vars → config file → defaults**
+Settings are resolved with this priority: **CLI flags → env vars → config file**
 
-Create `~/.ux-pilot/config.yaml` to set persistent defaults:
+There are **no defaults** for provider, model, or API key — they must be explicitly set. Missing values produce clear error messages with suggestions.
+
+Create `~/.ux-pilot/config.yaml` to set persistent values:
 
 ```yaml
 llm_provider: openai
 llm_model: gpt-4o
-llm_api_key: sk-...        # or use env vars instead
+llm_api_key: sk-...           # or use LLM_API_KEY env var
+llm_base_url: null            # optional, overrides known provider URLs
 headed: false
 max_actions: 50
 max_duration_minutes: 5
 output_dir: ./results
-ollama_base_url: http://localhost:11434
 ```
 
 Environment variables use the `UX_PILOT_` prefix:
@@ -139,36 +152,56 @@ Environment variables use the `UX_PILOT_` prefix:
 ```bash
 export UX_PILOT_LLM_PROVIDER=anthropic
 export UX_PILOT_LLM_MODEL=claude-sonnet-4-20250514
+export UX_PILOT_LLM_API_KEY=sk-ant-...
 export UX_PILOT_MAX_ACTIONS=30
 ```
 
 CLI flags always win:
 
 ```bash
-ux-pilot run --url ... --task ... --llm-model gpt-4o --max-actions 20
+ux-pilot run --url ... --task ... \
+  --llm-provider openai --llm-model gpt-4o --max-actions 20
 ```
 
 ## LLM Providers
 
+A single `LLM_API_KEY` env var works for all providers. Provider and model **must** be specified — no silent defaults. Missing values produce helpful error messages with suggested models.
+
 ```bash
-# OpenAI (default)
-export OPENAI_API_KEY="sk-..."
-ux-pilot run --url ... --task ...
+# OpenAI
+export LLM_API_KEY="sk-..."
+ux-pilot run --url ... --task ... --llm-provider openai --llm-model gpt-4o-mini
 
 # Anthropic
-export ANTHROPIC_API_KEY="sk-ant-..."
+export LLM_API_KEY="sk-ant-..."
 ux-pilot run --url ... --task ... --llm-provider anthropic --llm-model claude-sonnet-4-20250514
 
-# Groq
-export GROQ_API_KEY="gsk_..."
-ux-pilot run --url ... --task ... --llm-provider groq --llm-model llama-3.3-70b-versatile
-
 # DeepSeek
-export DEEPSEEK_API_KEY="sk-..."
+export LLM_API_KEY="sk-..."
 ux-pilot run --url ... --task ... --llm-provider deepseek --llm-model deepseek-chat
 
-# Ollama (local, free)
+# Groq
+export LLM_API_KEY="gsk_..."
+ux-pilot run --url ... --task ... --llm-provider groq --llm-model llama-3.3-70b-versatile
+
+# Ollama (local, no API key needed)
 ux-pilot run --url ... --task ... --llm-provider ollama --llm-model llama3.2
+
+# Custom OpenAI-compatible provider
+ux-pilot run --url ... --task ... \
+  --llm-provider custom --llm-base-url https://my-api.com/v1 \
+  --llm-model my-model --llm-api-key sk-...
+```
+
+You can also pass the API key directly via `--llm-api-key` instead of using the env var.
+
+### Overriding the Base URL
+
+Known providers have pre-mapped base URLs. Override with `--llm-base-url`:
+
+```bash
+# Use a proxy or compatible endpoint
+ux-pilot run ... --llm-provider openai --llm-base-url https://my-proxy.com/v1 --llm-model gpt-4o
 ```
 
 ### Statistical Runs
@@ -177,7 +210,8 @@ Run the same persona multiple times for statistical validity (LLM behavior is no
 
 ```bash
 ux-pilot run --url "https://shop.example.com" --task "Buy a smartphone" \
-  --persona "Anxious First-Timer" --instances 5
+  --persona "Anxious First-Timer" --instances 5 \
+  --llm-provider deepseek --llm-model deepseek-chat
 ```
 
 ## How It Works
@@ -193,7 +227,7 @@ Each persona has 9 traits scored 0-100:
 Traits map to concrete behaviors via a 4-tier system:
 - **Behavioral Rules**: What the persona must/must not do
 - **Monologue Triggers**: Inner thoughts based on situation
-- **Compound Interactions**: 8 emergent behaviors from trait combinations
+- **Compound Interactions**: 17 emergent behaviors from trait combinations
 
 ### 5-Layer Prompt Architecture
 
@@ -246,8 +280,8 @@ ux-pilot run ... --output ./results
 
 ```
 ux_pilot/
-├── cli.py              # Typer CLI entry (run, personas, history)
-├── config.py           # Settings cascade (CLI > env > file > defaults)
+├── cli.py              # Typer CLI entry (run, benchmark, personas, history)
+├── config.py           # Settings cascade (CLI > env > file), no defaults
 ├── personas/           # 15 built-in personas, trait system, prompt builder
 │   ├── catalog.py      # Persona archetype definitions
 │   ├── rules.py        # 4-tier behavioral rules + 17 compound interactions
@@ -259,8 +293,8 @@ ux_pilot/
 │   ├── orchestrator.py # Parallel multi-persona execution
 │   ├── commands.py     # CLI command implementations
 │   ├── guardrails.py   # Persona-aware stop conditions + frustration
-│   ├── hooks.py        # Human-like timing delays
-│   ├── llm_factory.py  # Provider-agnostic LLM (OpenAI, Anthropic, DeepSeek, Groq, Ollama)
+│   ├── hooks.py        # Human-like cognitive & CDP interaction delays
+│   ├── llm_factory.py  # Single ChatOpenAI path, known URL map, custom provider support
 │   └── tracking.py     # Token usage tracking (composition pattern)
 ├── humanization/       # Research-backed human simulation
 │   ├── profile.py      # Trait → behavioral parameter mapping
@@ -280,8 +314,8 @@ ux_pilot/
 - Persona-aware guardrails (thresholds scaled by neuroticism/conscientiousness)
 - Implicit failure detection (frustration from stuck/repeated actions)
 - `--instances N` for statistical validity across multiple runs
-- Provider-agnostic: OpenAI, Anthropic, DeepSeek, Groq, Ollama
-- 55 tests
+- Provider-agnostic: OpenAI, Anthropic, DeepSeek, Groq, Ollama + custom OpenAI-compatible providers
+- 69 tests
 
 **Dependencies (6 runtime):** browser-use, litellm, typer, rich, pydantic, openai
 
