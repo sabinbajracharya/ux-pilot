@@ -39,9 +39,18 @@ def page_evaluation_delay(profile: HumanizationProfile) -> float:
     """Time spent scanning page before first interaction.
 
     Research: 3-5s for above-fold evaluation (NNGroup).
+    Three factors influence delay:
+    - High attention_span → reads more content (longer)
+    - High conscientiousness → checks everything carefully (longer)
+    - Low tech_literacy → struggles to understand modern UI patterns (longer)
     """
     base = random.uniform(3.0, 5.0)
-    modifier = 1.0 + (profile.attention_span / 200) + (profile.conscientiousness / 200)
+    modifier = (
+        1.0
+        + (profile.attention_span / 200)
+        + (profile.conscientiousness / 200)
+        + ((100 - profile.tech_literacy) / 200)
+    )
     return base * modifier
 
 

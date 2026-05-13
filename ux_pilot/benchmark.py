@@ -219,14 +219,24 @@ def print_benchmark_report(console: Console, results: list[ScenarioResult]) -> N
     for scenario in sorted(set(r.scenario for r in results)):
         scenario_results = [r for r in results if r.scenario == scenario]
         console.print(f"  [bold]{scenario}:[/]")
-        # Best and worst persona for this scenario
-        best = max(scenario_results, key=lambda r: (r.completed, -r.frustration, r.satisfaction))
-        worst = max(scenario_results, key=lambda r: (not r.completed, r.frustration, -r.satisfaction))
-        if best.completed and not worst.completed:
+        completed = [r for r in scenario_results if r.completed]
+        failed = [r for r in scenario_results if not r.completed]
+        if not failed:
+            # All completed — show fastest vs slowest by actual speed
+            fastest = min(completed, key=lambda r: (r.steps, r.duration))
+            slowest = max(completed, key=lambda r: (r.steps, r.duration))
+            console.print(f"    [green]Fastest: {fastest.persona}[/] ({fastest.steps} steps, {fastest.duration:.0f}s) — [yellow]Slowest: {slowest.persona}[/] ({slowest.steps} steps, {slowest.duration:.0f}s)")
+            # Also show satisfaction spread if meaningful
+            best_sat = max(completed, key=lambda r: r.satisfaction)
+            worst_sat = min(completed, key=lambda r: r.satisfaction)
+            if best_sat.satisfaction - worst_sat.satisfaction >= 10:
+                console.print(f"    [dim]Highest satisfaction: {best_sat.persona} ({best_sat.satisfaction}) — Lowest: {worst_sat.persona} ({worst_sat.satisfaction})[/]")
+        elif completed:
+            # Some completed, some failed — compare best vs worst
+            best = max(completed, key=lambda r: (r.satisfaction, -r.frustration))
+            worst = max(failed, key=lambda r: (r.frustration, -r.satisfaction))
             console.print(f"    [green]Best: {best.persona}[/] (completed in {best.steps} steps) vs [red]Worst: {worst.persona}[/] (failed: {worst.stop_reason})")
-        elif best.completed and worst.completed:
-            console.print(f"    [green]Fastest: {best.persona}[/] ({best.steps} steps, {best.duration:.0f}s) — [yellow]Slowest: {worst.persona}[/] ({worst.steps} steps, {worst.duration:.0f}s)")
-        elif not best.completed:
+        else:
             console.print(f"    [red]All personas failed this scenario[/] — likely a site accessibility issue")
 
     # Key insights
