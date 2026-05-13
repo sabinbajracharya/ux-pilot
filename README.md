@@ -287,4 +287,8 @@ ux_pilot/
 
 ## License
 
-MIT
+MIT — free for personal and commercial use, modification, and redistribution.
+
+UX Pilot is open-source. The enterprise platform (concurrent agents, dashboards,
+video recordings, team collaboration) is a separate proprietary product. If you
+need to run personas at scale, contact us for the hosted version.
