@@ -273,9 +273,16 @@ class AgentRunner:
         # Update humanization hooks with current frustration
         self._hooks.update_frustration(self._guardrail_state.frustration_level)
 
-        # Base emotion from rules (used as fallback and as input to LLM)
+        # Base emotion from rules, with emotional inertia from previous state
+        adjusted_frustration = self._guardrail_state.frustration_level
+        if hasattr(self, "_emotional_inertia"):
+            # Carry over 30% of previous frustration for emotional continuity
+            adjusted_frustration = max(
+                adjusted_frustration,
+                getattr(self, "_emotional_inertia", 0) * 0.3
+            )
         base_emotion = GuardrailChecker.infer_emotion(
-            self._guardrail_state.frustration_level,
+            adjusted_frustration,
             neuroticism=self._traits.get("neuroticism", 50),
             conscientiousness=self._traits.get("conscientiousness", 50),
             attention_span=self._traits.get("attention_span", 50),
@@ -296,13 +303,20 @@ class AgentRunner:
             if state:
                 emotion = state.get("emotion", base_emotion)
                 monologue = state.get("monologue", monologue)
-                # Apply LLM-suggested frustration delta
+                # Apply LLM-suggested frustration delta with emotional inertia
                 delta = state.get("frustrationDelta", 0)
-                if delta != 0 and hasattr(self._guardrail_state, "frustration_level"):
+                if delta != 0:
                     self._guardrail_state.frustration_level = max(
                         0, min(100, self._guardrail_state.frustration_level + delta)
                     )
                     self._hooks.update_frustration(self._guardrail_state.frustration_level)
+                    self._injector.update_frustration(self._guardrail_state.frustration_level)
+                # Track emotional inertia — negative emotions linger
+                negative_emotions = {"frustrated", "impatient", "anxious", "confused"}
+                if emotion in negative_emotions:
+                    self._emotional_inertia = self._guardrail_state.frustration_level
+                else:
+                    self._emotional_inertia = max(0, getattr(self, "_emotional_inertia", 0) - 10)
 
         entry = ActionEntry(
             sequence=self._state.step_count,
