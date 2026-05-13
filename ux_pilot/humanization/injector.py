@@ -159,12 +159,12 @@ class HumanizationInjector:
             pass
 
 
-def get_page_from_agent(agent: Any) -> Any | None:
-    """Safely extract Playwright page from a browser-use Agent instance (sync)."""
+async def get_page_from_agent(agent: Any) -> Any | None:
+    """Safely extract Playwright page from a browser-use Agent instance."""
     try:
         session = getattr(agent, "browser_session", None)
         if session:
-            return session.get_current_page()
+            return await session.get_current_page()
     except Exception:
         pass
     return None

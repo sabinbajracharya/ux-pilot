@@ -348,7 +348,7 @@ class AgentRunner:
         await self._hooks.on_step_end(None)
 
         # Inject CDP-level humanization (mouse fidget, micro-scroll, etc.)
-        page = get_page_from_agent(self._agent)
+        page = await get_page_from_agent(self._agent)
         if page:
             self._injector.update_frustration(self._guardrail_state.frustration_level)
             try:
