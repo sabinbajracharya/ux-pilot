@@ -350,5 +350,80 @@ def history_show(
     console.print(Panel("\n".join(lines), title=f"Run #{run_id}", border_style="cyan"))
 
 
+# ── benchmark ─────────────────────────────────────────────────────────────
+
+@app.command()
+def benchmark(
+    personas: Annotated[
+        list[str],
+        typer.Option("--persona", "-p", help="Personas to test (repeatable, default: all)"),
+    ] = None,
+    scenario: Annotated[
+        Optional[list[str]],
+        typer.Option("--scenario", help="Scenarios to run (repeatable, default: all built-in)"),
+    ] = None,
+    instances: Annotated[
+        int,
+        typer.Option("--instances", "-n", help="Runs per scenario-persona pair"),
+    ] = 1,
+    llm_provider: Annotated[
+        Optional[str],
+        typer.Option("--llm-provider", help="LLM provider"),
+    ] = None,
+    llm_model: Annotated[
+        Optional[str],
+        typer.Option("--llm-model", help="LLM model name"),
+    ] = None,
+    output: Annotated[
+        Optional[str],
+        typer.Option("--output", "-o", help="Directory to save benchmark report"),
+    ] = None,
+) -> None:
+    """Run predefined benchmark scenarios against personas and generate a comparison report."""
+    from ux_pilot.config import Settings
+    from ux_pilot.benchmark import (
+        BUILT_IN_SCENARIOS, run_benchmark, print_benchmark_report, export_benchmark_json,
+    )
+    from ux_pilot.personas.catalog import CATALOG
+
+    if not _check_playwright():
+        raise typer.Exit(1)
+
+    settings = Settings.load(llm_provider=llm_provider, llm_model=llm_model)
+
+    if settings.llm_provider not in ("ollama",) and not settings.get_api_key():
+        console.print(f"[bold red]Error:[/] No API key for '{settings.llm_provider}'")
+        raise typer.Exit(1)
+
+    # Resolve scenarios
+    scenarios = BUILT_IN_SCENARIOS
+    if scenario:
+        names = set(scenario)
+        scenarios = [s for s in BUILT_IN_SCENARIOS if s.name in names]
+        if not scenarios:
+            console.print(f"[bold red]Error:[/] No matching scenarios. Available: {[s.name for s in BUILT_IN_SCENARIOS]}")
+            raise typer.Exit(1)
+
+    # Resolve personas
+    persona_names = personas if personas else [p.name for p in CATALOG[:6]]  # Default: first 6
+    console.print(f"[bold]🚀 Benchmark: {len(scenarios)} scenarios × {len(persona_names)} personas × {instances} instances[/]")
+    console.print(f"[dim]LLM: {settings.llm_provider}/{settings.llm_model or 'default'}[/]")
+    console.print()
+
+    results = asyncio.run(run_benchmark(
+        scenarios=scenarios,
+        personas=persona_names,
+        settings=settings,
+        console=console,
+        instances=instances,
+    ))
+
+    print_benchmark_report(console, results)
+
+    if output:
+        path = export_benchmark_json(results, output)
+        console.print(f"[dim]📄 Report saved to {path}[/]")
+
+
 if __name__ == "__main__":
     app()
