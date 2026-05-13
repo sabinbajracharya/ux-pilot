@@ -312,14 +312,6 @@ class AgentRunner:
             if state:
                 emotion = state.get("emotion", base_emotion)
                 monologue = state.get("monologue", monologue)
-                # Apply LLM-suggested frustration delta with emotional inertia
-                delta = state.get("frustrationDelta", 0)
-                if delta != 0:
-                    self._guardrail_state.frustration_level = max(
-                        0, min(100, self._guardrail_state.frustration_level + delta)
-                    )
-                    self._hooks.update_frustration(self._guardrail_state.frustration_level)
-                    self._injector.update_frustration(self._guardrail_state.frustration_level)
                 # Track emotional inertia — negative emotions linger
                 negative_emotions = {"frustrated", "impatient", "anxious", "confused"}
                 if emotion in negative_emotions:

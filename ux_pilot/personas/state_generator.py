@@ -34,8 +34,7 @@ Be specific: reference what you actually see, prices, page elements, what worked
 
 Respond with JSON only:
 {{"emotion": "<neutral|confident|confused|skeptical|anxious|frustrated|impatient|delighted>",
- "monologue": "<1-2 sentences, in character, in your natural voice, specific to what you see/feel>",
- "frustrationDelta": <integer between -10 and +20>}}"""
+ "monologue": "<1-2 sentences, in character, in your natural voice, specific to what you see/feel>"}}"""
 
 
 class PersonaStateGenerator:
@@ -164,7 +163,6 @@ class PersonaStateGenerator:
         return {
             "emotion": emotion,
             "monologue": fallbacks.get(emotion, f"Hmm, let me think{compound}..."),
-            "frustrationDelta": 0,
         }
 
 

@@ -43,10 +43,26 @@ class TestGuardrailChecker:
     def test_repeated_action_detection(self):
         # neuroticism=50 → max_repeated_actions = max(3, 7 - int(50/25)) = 5
         checker = GuardrailChecker(neuroticism=50)
-        state = GuardrailState(last_actions=["click_button"] * 5)
+        state = GuardrailState(
+            last_actions=["click_button"] * 5,
+            last_page_urls=["http://same-page.com"] * 5,
+        )
         result = checker.check(state)
         assert result.should_stop is True
         assert "repeated" in (result.reason or "").lower()
+
+    def test_repeated_action_different_pages_not_flagged(self):
+        """Same action on DIFFERENT pages is productive browsing, not stuck."""
+        checker = GuardrailChecker(neuroticism=50)
+        state = GuardrailState(
+            last_actions=["click_button"] * 5,
+            last_page_urls=[
+                "http://page1.com", "http://page2.com", "http://page3.com",
+                "http://page4.com", "http://page5.com",
+            ],
+        )
+        result = checker.check(state)
+        assert result.should_stop is False
 
     def test_scroll_repeat_not_flagged(self):
         """Scroll is a benign repeatable action — should not trigger guardrail."""

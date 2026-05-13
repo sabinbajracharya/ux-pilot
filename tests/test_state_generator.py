@@ -70,5 +70,4 @@ class TestPersonaStateGenerator:
         result = PersonaStateGenerator.fallback_state("confused", 50, generator._ruleset)
         assert "emotion" in result
         assert "monologue" in result
-        assert "frustrationDelta" in result
         assert result["emotion"] == "confused"

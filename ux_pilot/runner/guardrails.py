@@ -106,12 +106,19 @@ class GuardrailChecker:
                     should_stop=True, reason="Stuck on same page"
                 )
 
-        # 6. Repeated actions (skip benign repeatable actions like scroll)
+        # 6. Repeated actions on the SAME page (skip benign repeatable actions)
+        # If the page URL changes between actions, they're productive navigation,
+        # not stuck behavior. Only flag when same action + same URL = truly stuck.
         if len(state.last_actions) >= self.max_repeated_actions:
             recent = state.last_actions[-self.max_repeated_actions:]
-            if len(set(recent)) == 1 and recent[0] not in _BENIGN_REPEATABLE_ACTIONS:
+            recent_urls = state.last_page_urls[-self.max_repeated_actions:]
+            if (
+                len(set(recent)) == 1
+                and recent[0] not in _BENIGN_REPEATABLE_ACTIONS
+                and len(set(recent_urls)) == 1
+            ):
                 return GuardrailResult(
-                    should_stop=True, reason="Same action repeated"
+                    should_stop=True, reason="Same action repeated on same page"
                 )
 
         return GuardrailResult(should_stop=False)
@@ -139,8 +146,10 @@ class GuardrailChecker:
             state.last_actions = state.last_actions[-(self.max_repeated_actions + 2):]
 
         # Detect implicit failure: repeating the same non-benign action on the
-        # same page suggests being stuck (e.g., clicking a broken button 3x).
+        # SAME page suggests being stuck (e.g., clicking a broken button 3x).
         # Benign actions (scroll, wait, navigate) are excluded.
+        # Page URL must be unchanged — clicking through different pages is
+        # normal browsing, not stuck behavior.
         if (
             not was_successful
             or action_type in _BENIGN_REPEATABLE_ACTIONS
@@ -149,7 +158,8 @@ class GuardrailChecker:
             pass  # No implicit failure check needed
         else:
             recent_actions = state.last_actions[-3:]
-            if len(set(recent_actions)) == 1:
+            recent_urls = state.last_page_urls[-3:]
+            if len(set(recent_actions)) == 1 and len(set(recent_urls)) == 1:
                 was_successful = False
 
         # Apply frustration delta
